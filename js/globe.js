@@ -84,7 +84,31 @@
     };
 
     function buildGlobe(data) {
-        // 1. Continent fills — brighter Morandi colors, subtle but visible
+        // 1. Continuous landmass base fill — ensures no gaps between countries
+        var landPositions = [];
+        data.landmass.forEach(function(poly) {
+            if (poly.type === 'Polygon') {
+                triangulateRing(poly.coords[0], landPositions, 1.0008);
+            } else if (poly.type === 'MultiPolygon') {
+                poly.coords.forEach(function(p) { triangulateRing(p[0], landPositions, 1.0008); });
+            }
+        });
+        if (landPositions.length > 0) {
+            var landGeo = new THREE.BufferGeometry();
+            landGeo.setAttribute('position', new THREE.Float32BufferAttribute(landPositions, 3));
+            landGeo.computeVertexNormals();
+            var landMat = new THREE.MeshLambertMaterial({
+                color: 0x9ea890,
+                transparent: true,
+                opacity: 0.75,
+                side: THREE.DoubleSide
+            });
+            var landMesh = new THREE.Mesh(landGeo, landMat);
+            landMesh.name = 'landmass-base';
+            globe.add(landMesh);
+        }
+
+        // 2. Continent fills — brighter Morandi colors layered on top of base
         Object.keys(data.continents).forEach(function(name) {
             var cont = data.continents[name];
             var color = MORANDI_COLORS[name] || 0x8B8B7A;
