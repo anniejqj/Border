@@ -1,12 +1,18 @@
 /**
  * Interactive 3D Globe — Social Science Gallery
  * HGIS UW-inspired dark, minimalist style.
- * Accurate country boundaries from Natural Earth 110m data,
- * rendered as fine line work over a deep navy sphere.
+ * Strictly accurate continent outlines from Natural Earth 110m data,
+ * uniform land color, no country boundaries.
  */
 (function() {
     const STUDY_AREA = { lat: 21.55, lng: 107.97, name: 'Dongxing\u2013M\u00f3ng C\u00e1i' };
     const DATA_URL = 'data/world.json';
+
+    // HGIS UW-inspired palette
+    const OCEAN_COLOR = 0x111a25;
+    const LAND_COLOR = 0xc9b99a;
+    const OUTLINE_COLOR = 0xa8997a;
+    const GRATICULE_COLOR = 0x3a4a5a;
 
     let scene, camera, renderer, globe, markerGroup;
     let isUserInteracting = false;
@@ -34,8 +40,8 @@
         container.appendChild(renderer.domElement);
 
         // Soft ambient light only — no harsh directional shadows
-        scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-        var rim = new THREE.DirectionalLight(0xaaccff, 0.25);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+        var rim = new THREE.DirectionalLight(0xaaccff, 0.2);
         rim.position.set(-5, 2, 5);
         scene.add(rim);
 
@@ -71,20 +77,8 @@
         return fetch(DATA_URL).then(function(r) { return r.json(); });
     }
 
-    // Brighter Morandi palette per continent (still muted / low saturation)
-    var MORANDI_COLORS = {
-        'North America': 0x8FAE98,
-        'South America': 0xC4A77D,
-        'Europe': 0x9BB5A5,
-        'Africa': 0xC9957A,
-        'Asia': 0x8BAE9C,
-        'Oceania': 0xC4A574,
-        'Seven seas (open ocean)': 0xA8B5B9,
-        'Antarctica': 0xA8B5B9
-    };
-
     function buildGlobe(data) {
-        // 1. Continuous landmass base fill — ensures no gaps between countries
+        // 1. Continuous landmass fill — uniform warm color, no gaps
         var landPositions = [];
         data.landmass.forEach(function(poly) {
             if (poly.type === 'Polygon') {
@@ -98,81 +92,34 @@
             landGeo.setAttribute('position', new THREE.Float32BufferAttribute(landPositions, 3));
             landGeo.computeVertexNormals();
             var landMat = new THREE.MeshLambertMaterial({
-                color: 0x9ea890,
+                color: LAND_COLOR,
                 transparent: true,
-                opacity: 0.75,
+                opacity: 0.9,
                 side: THREE.DoubleSide
             });
             var landMesh = new THREE.Mesh(landGeo, landMat);
-            landMesh.name = 'landmass-base';
+            landMesh.name = 'landmass-fill';
             globe.add(landMesh);
         }
 
-        // 2. Continent fills — brighter Morandi colors layered on top of base
+        // 2. Strictly accurate continent outlines — no country boundaries
+        var outlinePositions = [];
         Object.keys(data.continents).forEach(function(name) {
             var cont = data.continents[name];
-            var color = MORANDI_COLORS[name] || 0x8B8B7A;
-            var positions = [];
             cont.polygons.forEach(function(poly) {
-                if (poly.type === 'Polygon') {
-                    triangulateRing(poly.coords[0], positions, 1.0012);
-                } else if (poly.type === 'MultiPolygon') {
-                    poly.coords.forEach(function(p) { triangulateRing(p[0], positions, 1.0012); });
-                }
+                appendPolygonOutline(poly.coords, poly.type, outlinePositions, 1.0016);
             });
-            if (positions.length === 0) return;
-            var geo = new THREE.BufferGeometry();
-            geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-            geo.computeVertexNormals();
-            var mat = new THREE.MeshLambertMaterial({
-                color: color,
+        });
+        if (outlinePositions.length > 0) {
+            var outlineGeo = new THREE.BufferGeometry();
+            outlineGeo.setAttribute('position', new THREE.Float32BufferAttribute(outlinePositions, 3));
+            var outlineMat = new THREE.LineBasicMaterial({
+                color: OUTLINE_COLOR,
                 transparent: true,
-                opacity: 0.6,
-                side: THREE.DoubleSide
+                opacity: 0.55
             });
-            var mesh = new THREE.Mesh(geo, mat);
-            mesh.name = 'continent-fill-' + name;
-            globe.add(mesh);
-        });
-
-        // 2. Accurate country boundaries as fine light lines
-        var linePositions = [];
-        data.countryOutlines.forEach(function(country) {
-            appendPolygonLines(country.coords, country.type, linePositions, 1.0028);
-        });
-        if (linePositions.length > 0) {
-            var lineGeo = new THREE.BufferGeometry();
-            lineGeo.setAttribute('position', new THREE.Float32BufferAttribute(linePositions, 3));
-            var lineMat = new THREE.LineBasicMaterial({ color: 0xdde3ea, transparent: true, opacity: 0.62 });
-            globe.add(new THREE.LineSegments(lineGeo, lineMat));
+            globe.add(new THREE.LineSegments(outlineGeo, outlineMat));
         }
-
-        // 3. Coastline outline — warm off-white for soft definition
-        var coastPositions = [];
-        data.landmass.forEach(function(poly) {
-            if (poly.type === 'Polygon') {
-                appendPolygonLines(poly.coords, 'Polygon', coastPositions, 1.0033);
-            } else if (poly.type === 'MultiPolygon') {
-                appendPolygonLines(poly.coords, 'MultiPolygon', coastPositions, 1.0033);
-            }
-        });
-        if (coastPositions.length > 0) {
-            var coastGeo = new THREE.BufferGeometry();
-            coastGeo.setAttribute('position', new THREE.Float32BufferAttribute(coastPositions, 3));
-            var coastMat = new THREE.LineBasicMaterial({ color: 0xf0e6c8, transparent: true, opacity: 0.42 });
-            globe.add(new THREE.LineSegments(coastGeo, coastMat));
-        }
-
-        // 4. Continent labels (subtle)
-        Object.keys(data.continents).forEach(function(name) {
-            var cont = data.continents[name];
-            var centroid = computeCentroid(cont.polygons);
-            if (centroid) {
-                var label = makeLabel(name);
-                label.position.copy(ll2v(centroid.lat, centroid.lng, 1.06));
-                globe.add(label);
-            }
-        });
     }
 
     function triangulateRing(ring, positions, radius) {
@@ -190,40 +137,24 @@
         }
     }
 
-    function appendPolygonLines(coords, type, arr, radius) {
+    function appendPolygonOutline(coords, type, arr, radius) {
         var polys = type === 'Polygon' ? [coords] : coords;
         for (var p = 0; p < polys.length; p++) {
             var rings = polys[p];
-            for (var r = 0; r < rings.length; r++) {
-                var ring = rings[r];
-                for (var i = 0; i < ring.length - 1; i++) {
-                    var a = ll2v(ring[i][1], ring[i][0], radius);
-                    var b = ll2v(ring[i + 1][1], ring[i + 1][0], radius);
-                    arr.push(a.x, a.y, a.z, b.x, b.y, b.z);
-                }
+            // Only draw outer rings; skip holes (lakes) for a clean HGIS look
+            var ring = rings[0];
+            for (var i = 0; i < ring.length - 1; i++) {
+                var a = ll2v(ring[i][1], ring[i][0], radius);
+                var b = ll2v(ring[i + 1][1], ring[i + 1][0], radius);
+                arr.push(a.x, a.y, a.z, b.x, b.y, b.z);
             }
         }
-    }
-
-    function computeCentroid(polygons) {
-        var sumLat = 0, sumLng = 0, count = 0;
-        for (var i = 0; i < polygons.length; i++) {
-            var poly = polygons[i];
-            var rings = poly.type === 'Polygon' ? poly.coords : poly.coords[0];
-            for (var j = 0; j < rings[0].length; j++) {
-                sumLng += rings[0][j][0];
-                sumLat += rings[0][j][1];
-                count++;
-            }
-        }
-        if (count === 0) return null;
-        return { lat: sumLat / count, lng: sumLng / count };
     }
 
     function createBaseSphere() {
         var geo = new THREE.SphereGeometry(0.999, 64, 64);
         var mat = new THREE.MeshPhongMaterial({
-            color: 0x111a25,
+            color: OCEAN_COLOR,
             specular: 0x050505,
             shininess: 4
         });
@@ -233,7 +164,7 @@
     function createGraticule() {
         var g = new THREE.Group();
         var r = 1.0005;
-        var mat = new THREE.LineBasicMaterial({ color: 0x3a4a5a, transparent: true, opacity: 0.12 });
+        var mat = new THREE.LineBasicMaterial({ color: GRATICULE_COLOR, transparent: true, opacity: 0.12 });
 
         for (var lat = -60; lat <= 60; lat += 30) {
             var pts = [];
