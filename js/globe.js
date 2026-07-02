@@ -16,6 +16,12 @@
     const MARKER_HALO = '#a08e6f';
     const MARKER_CORE = '#6a5a6e';
 
+    const PROJECT_INFO = {
+        location: 'Dongxing\u2013M\u00f3ng C\u00e1i',
+        title: 'Gendered Friction',
+        summary: 'Ethnographic research on Vietnamese women\u2019s invisible labor at the China\u2013Vietnam border, tracing how administrative, reproductive, and emotional labor sustain everyday cross-border life.'
+    };
+
     const container = document.getElementById('globe-canvas');
     if (!container) return;
 
@@ -41,6 +47,30 @@
         .style('width', '100%')
         .style('height', 'auto')
         .style('overflow', 'visible');
+
+    // Tooltip (HGIS UW style)
+    var tooltip = d3.select(wrap)
+        .append('div')
+        .attr('class', 'globe-tooltip')
+        .style('position', 'absolute')
+        .style('pointer-events', 'none')
+        .style('opacity', 0)
+        .style('background', '#f5efe2')
+        .style('color', '#2c2823')
+        .style('border', '1px solid #d6cdbf')
+        .style('border-radius', '4px')
+        .style('padding', '10px 14px')
+        .style('max-width', '260px')
+        .style('box-shadow', '0 4px 14px rgba(44, 40, 35, 0.12)')
+        .style('font-family', '"Source Sans Pro", sans-serif')
+        .style('font-size', '13px')
+        .style('line-height', '1.45')
+        .style('transition', 'opacity 0.2s ease')
+        .style('z-index', '100')
+        .html('<span style="display:inline-block;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;background:#a08e6f;color:#fff;padding:2px 6px;border-radius:3px;">Project</span>' +
+              '<strong style="display:block;margin:4px 0 2px;font-size:14px;color:#2c2823;">' + PROJECT_INFO.location + '</strong>' +
+              '<em style="display:block;margin-bottom:5px;color:#6a5a6e;font-size:13px;">' + PROJECT_INFO.title + '</em>' +
+              '<span style="color:#6c6358;font-size:12px;">' + PROJECT_INFO.summary + '</span>');
 
     // Initial rotation toward study area (not dead-center)
     var initialRotate = [-STUDY_AREA.lng + 25, -STUDY_AREA.lat * 0.6, 0];
@@ -134,7 +164,15 @@
         var c = projection(pt);
 
         var pointGroup = gPoints.selectAll('g.pt').data([STUDY_AREA]);
-        var enter = pointGroup.enter().append('g').attr('class', 'pt');
+        var enter = pointGroup.enter().append('g')
+            .attr('class', 'pt')
+            .style('cursor', 'pointer')
+            .style('pointer-events', 'all')
+            .on('click', function(event) {
+                event.stopPropagation();
+                if (!c || !visible) { hideTooltip(); return; }
+                showTooltip(c[0], c[1]);
+            });
         enter.append('circle').attr('class', 'halo').attr('r', 7);
         enter.append('circle').attr('class', 'core').attr('r', 3);
 
@@ -143,11 +181,39 @@
                 if (!c || !visible) return 'translate(-9999,-9999)';
                 return 'translate(' + c[0] + ',' + c[1] + ')';
             })
-            .attr('opacity', visible ? 1 : 0);
+            .attr('opacity', visible ? 1 : 0)
+            .each(function() {
+                if (!visible) hideTooltip();
+            });
 
         enter.select('.halo').attr('fill', 'none').attr('stroke', MARKER_HALO).attr('stroke-width', 1.5);
         enter.select('.core').attr('fill', MARKER_CORE);
     }
+
+    function showTooltip(x, y) {
+        var wrapRect = wrap.getBoundingClientRect();
+        var tip = tooltip.node();
+        var tw = tip.offsetWidth;
+        var th = tip.offsetHeight;
+        var left = x + 14;
+        var top = y - th - 14;
+        if (left + tw > wrapRect.width - 8) left = x - tw - 14;
+        if (top < 8) top = y + 14;
+        tooltip
+            .style('left', Math.max(8, left) + 'px')
+            .style('top', Math.max(8, top) + 'px')
+            .style('opacity', 1);
+    }
+
+    function hideTooltip() {
+        tooltip.style('opacity', 0);
+    }
+
+    // Close tooltip when clicking outside the marker
+    wrap.addEventListener('click', function(event) {
+        var target = event.target;
+        if (!target.closest('.pt')) hideTooltip();
+    });
 
     // Auto-rotate
     var autoRotate = true;
