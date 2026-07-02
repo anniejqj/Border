@@ -17,9 +17,10 @@
     const MARKER_CORE = '#6a5a6e';
 
     const PROJECT_INFO = {
-        location: 'Dongxing\u2013M\u00f3ng C\u00e1i',
         title: 'Gendered Friction',
-        summary: 'Ethnographic research on Vietnamese women\u2019s invisible labor at the China\u2013Vietnam border, tracing how administrative, reproductive, and emotional labor sustain everyday cross-border life.'
+        coords: '21.55\u00b0N, 107.97\u00b0E',
+        year: '2024',
+        summary: 'An ethnographic project on Vietnamese women\u2019s invisible labor at the China\u2013Vietnam border, showing how administrative, reproductive, and emotional labor sustain everyday cross-border life.'
     };
 
     const container = document.getElementById('globe-canvas');
@@ -58,19 +59,19 @@
         .style('background', '#f5efe2')
         .style('color', '#2c2823')
         .style('border', '1px solid #d6cdbf')
-        .style('border-radius', '4px')
-        .style('padding', '10px 14px')
-        .style('max-width', '260px')
-        .style('box-shadow', '0 4px 14px rgba(44, 40, 35, 0.12)')
+        .style('border-radius', '2px')
+        .style('padding', '12px 16px')
+        .style('max-width', '280px')
+        .style('box-shadow', '0 4px 16px rgba(44, 40, 35, 0.10)')
         .style('font-family', '"Source Sans Pro", sans-serif')
-        .style('font-size', '13px')
-        .style('line-height', '1.45')
+        .style('font-size', '14px')
+        .style('line-height', '1.5')
         .style('transition', 'opacity 0.2s ease')
         .style('z-index', '100')
-        .html('<span style="display:inline-block;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;background:#a08e6f;color:#fff;padding:2px 6px;border-radius:3px;">Project</span>' +
-              '<strong style="display:block;margin:4px 0 2px;font-size:14px;color:#2c2823;">' + PROJECT_INFO.location + '</strong>' +
-              '<em style="display:block;margin-bottom:5px;color:#6a5a6e;font-size:13px;">' + PROJECT_INFO.title + '</em>' +
-              '<span style="color:#6c6358;font-size:12px;">' + PROJECT_INFO.summary + '</span>');
+        .html('<span style="color:#6c6358;font-size:13px;">project</span> ' +
+              '<strong style="font-family:\'Playfair Display\', Georgia, serif;font-size:15px;font-weight:700;color:#2c2823;">' + PROJECT_INFO.title + '</strong> ' +
+              '<em style="color:#4a4a4a;font-style:italic;">' + PROJECT_INFO.summary + '</em> ' +
+              '<span style="color:#6c6358;font-size:12px;white-space:nowrap;">' + PROJECT_INFO.coords + ' · ' + PROJECT_INFO.year + '</span>');
 
     // Initial rotation toward study area (not dead-center)
     var initialRotate = [-STUDY_AREA.lng + 25, -STUDY_AREA.lat * 0.6, 0];
